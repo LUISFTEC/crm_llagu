@@ -1,3 +1,4 @@
+// components/CRM/ModalCliente.jsx
 import { useState, useEffect } from 'react';
 import { AGENTES, ACUERDOS, ESTADOS_VENTA } from '../../constants';
 
@@ -62,6 +63,7 @@ function ModalCliente({ show, onClose, onSave, editMode, initialData }) {
                   <label className="form-label">Fecha Contacto</label>
                   <input type="date" name="fechaContacto" className="form-control" value={formData.fechaContacto} onChange={handleChange} />
                 </div>
+                
                 <div className="col-md-4">
                   <label className="form-label">Acuerdo</label>
                   <select name="acuerdo" className="form-select" value={formData.acuerdo} onChange={handleChange}>
@@ -80,11 +82,67 @@ function ModalCliente({ show, onClose, onSave, editMode, initialData }) {
                     {AGENTES.map(a => <option key={a} value={a}>{a}</option>)}
                   </select>
                 </div>
+
+                {/* CAMPOS CONDICIONALES */}
+                {formData.estadoVenta === 'Compró' && (
+                  <div className="row g-3 mt-1 bg-success bg-opacity-10 p-3 rounded">
+                    <div className="col-md-6">
+                      <label className="form-label fw-bold">Precio Final (S/)</label>
+                      <input 
+                        type="number" 
+                        name="precio"
+                        className="form-control" 
+                        placeholder="0.00" 
+                        value={formData.precio} 
+                        onChange={handleChange} 
+                      />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label fw-bold">Sector / Manzana</label>
+                      <input 
+                        type="text" 
+                        name="sectorMz"
+                        className="form-control" 
+                        placeholder="Ej: Sector A - Mz J" 
+                        value={formData.sectorMz} 
+                        onChange={handleChange} 
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {formData.estadoVenta === 'Separó' && (
+                  <div className="col-12 bg-warning bg-opacity-10 p-3 rounded">
+                    <label className="form-label fw-bold">Monto de Separación (S/)</label>
+                    <input 
+                      type="number" 
+                      name="montoSeparacion"
+                      className="form-control" 
+                      placeholder="0.00" 
+                      value={formData.montoSeparacion} 
+                      onChange={handleChange} 
+                    />
+                  </div>
+                )}
+
+                {formData.estadoVenta === 'Financió' && (
+                  <div className="col-12 bg-info bg-opacity-10 p-3 rounded">
+                    <label className="form-label fw-bold">Monto Financiado (S/)</label>
+                    <input 
+                      type="number" 
+                      name="montoFinanciamiento"
+                      className="form-control" 
+                      placeholder="0.00" 
+                      value={formData.montoFinanciamiento} 
+                      onChange={handleChange} 
+                    />
+                  </div>
+                )}
               </div>
             </div>
             <div className="modal-footer">
               <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
-              <button type="submit" className="btn btn-primary">Guardar</button>
+              <button type="submit" className="btn btn-primary px-5">Guardar</button>
             </div>
           </form>
         </div>
