@@ -6,7 +6,7 @@ import Login from './components/Auth/Login';
 import Navbar from './components/common/Navbar';
 import CRMClientes from './components/CRM/CRMClientes';
 import AgendaCitas from './components/Agenda/AgendaCitas';
-import LeadsList from './components/Leads/LeadsList';
+import LeadsList from './components/leads/LeadsList';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 
 function App() {
