@@ -2,12 +2,14 @@
 import { useState } from 'react';
 import { useCitas } from '../../hooks/useCitas';
 import { useClientes } from '../../hooks/useClientes';
+import { useAuth } from '../../hooks/useAuth';
 import ListaCitas from './ListaCitas';
 import FormularioCita from './FormularioCita';
 
-function AgendaCitas({ onSwitchToCRM }) {  // ← RECIBE el prop aquí
+function AgendaCitas({ onSwitchToCRM }) {
   const { citas, agregarCita, actualizarCita, eliminarCita } = useCitas();
   const { clientes } = useClientes();
+  const { user, rol } = useAuth();
   const [showModal, setShowModal] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [selectedCita, setSelectedCita] = useState(null);
@@ -45,27 +47,28 @@ function AgendaCitas({ onSwitchToCRM }) {  // ← RECIBE el prop aquí
     }
   };
 
+  const citasDelMes = citas.filter(c => !filtroMes || c.fecha?.startsWith(filtroMes));
+
   return (
     <div className="container-fluid px-4">
       {/* Header */}
-      <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
-        <h2 className="fw-bold mb-0">📅 Agenda de Citas</h2>
+      <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <h5 className="fw-bold mb-0">📅 Agenda de Citas</h5>
         
-        <div className="d-flex gap-3">
-          {/* Filtro por mes */}
-          <div className="d-flex align-items-center gap-2">
-            <label className="fw-bold">Filtrar mes:</label>
+        <div className="d-flex gap-2">
+          <div className="d-flex align-items-center gap-1">
+            <label className="small fw-bold">Filtrar mes:</label>
             <input 
               type="month" 
-              className="form-control"
+              className="form-control form-control-sm"
               value={filtroMes}
               onChange={(e) => setFiltroMes(e.target.value)}
-              style={{ width: '180px' }}
+              style={{ width: '150px' }}
             />
           </div>
           
           <button 
-            className="btn btn-primary" 
+            className="btn btn-sm btn-primary" 
             onClick={() => {
               setEditMode(false);
               setSelectedCita(null);
@@ -77,45 +80,57 @@ function AgendaCitas({ onSwitchToCRM }) {  // ← RECIBE el prop aquí
         </div>
       </div>
 
-      {/* Resumen de citas */}
-      <div className="row mb-4">
-        <div className="col-md-3">
-          <div className="card bg-warning text-dark">
-            <div className="card-body">
-              <h5 className="card-title">⏳ Pendientes</h5>
-              <h2 className="mb-0">
-                {citas.filter(c => c.estado === 'Pendiente' && (!filtroMes || c.fecha?.startsWith(filtroMes))).length}
-              </h2>
+      {/* Resumen de citas - Colores vivos */}
+      <div className="row g-2 mb-3">
+        <div className="col-3 col-md-3">
+          <div className="card bg-warning text-dark border-0 shadow-sm">
+            <div className="card-body py-2 px-2">
+              <div className="d-flex justify-content-between align-items-center">
+                <div>
+                  <small className="fw-bold">Pendientes</small>
+                  <h4 className="mb-0 fw-bold">{citasDelMes.filter(c => c.estado === 'Pendiente').length}</h4>
+                </div>
+                <i className="fas fa-clock fa-2x"></i>
+              </div>
             </div>
           </div>
         </div>
-        <div className="col-md-3">
-          <div className="card bg-success text-white">
-            <div className="card-body">
-              <h5 className="card-title">✅ Completadas</h5>
-              <h2 className="mb-0">
-                {citas.filter(c => c.estado === 'Completada' && (!filtroMes || c.fecha?.startsWith(filtroMes))).length}
-              </h2>
+        <div className="col-3 col-md-3">
+          <div className="card bg-success text-white border-0 shadow-sm">
+            <div className="card-body py-2 px-2">
+              <div className="d-flex justify-content-between align-items-center">
+                <div>
+                  <small className="fw-bold">Completadas</small>
+                  <h4 className="mb-0 fw-bold">{citasDelMes.filter(c => c.estado === 'Completada').length}</h4>
+                </div>
+                <i className="fas fa-check-circle fa-2x"></i>
+              </div>
             </div>
           </div>
         </div>
-        <div className="col-md-3">
-          <div className="card bg-danger text-white">
-            <div className="card-body">
-              <h5 className="card-title">❌ Canceladas</h5>
-              <h2 className="mb-0">
-                {citas.filter(c => c.estado === 'Cancelada' && (!filtroMes || c.fecha?.startsWith(filtroMes))).length}
-              </h2>
+        <div className="col-3 col-md-3">
+          <div className="card bg-danger text-white border-0 shadow-sm">
+            <div className="card-body py-2 px-2">
+              <div className="d-flex justify-content-between align-items-center">
+                <div>
+                  <small className="fw-bold">Canceladas</small>
+                  <h4 className="mb-0 fw-bold">{citasDelMes.filter(c => c.estado === 'Cancelada').length}</h4>
+                </div>
+                <i className="fas fa-times-circle fa-2x"></i>
+              </div>
             </div>
           </div>
         </div>
-        <div className="col-md-3">
-          <div className="card bg-info text-white">
-            <div className="card-body">
-              <h5 className="card-title">📊 Total</h5>
-              <h2 className="mb-0">
-                {citas.filter(c => !filtroMes || c.fecha?.startsWith(filtroMes)).length}
-              </h2>
+        <div className="col-3 col-md-3">
+          <div className="card bg-primary text-white border-0 shadow-sm">
+            <div className="card-body py-2 px-2">
+              <div className="d-flex justify-content-between align-items-center">
+                <div>
+                  <small className="fw-bold">Total</small>
+                  <h4 className="mb-0 fw-bold">{citasDelMes.length}</h4>
+                </div>
+                <i className="fas fa-calendar-alt fa-2x"></i>
+              </div>
             </div>
           </div>
         </div>
@@ -127,6 +142,7 @@ function AgendaCitas({ onSwitchToCRM }) {  // ← RECIBE el prop aquí
         onEditar={handleEditar}
         onEliminar={handleEliminar}
         filtroMes={filtroMes}
+        rol={rol}
       />
 
       {/* Modal formulario */}
@@ -141,7 +157,7 @@ function AgendaCitas({ onSwitchToCRM }) {  // ← RECIBE el prop aquí
         editMode={editMode}
         initialData={selectedCita}
         clientes={clientes}
-        onSwitchToCRM={onSwitchToCRM}  // ← PASA el prop aquí
+        onSwitchToCRM={onSwitchToCRM}
       />
     </div>
   );

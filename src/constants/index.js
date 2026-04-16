@@ -15,3 +15,18 @@ export const ESTADO_BADGE_CLASSES = {
 export const TIPOS_CITA = ["Llamada", "Visita", "Reunión", "Seguimiento"];
 export const ESTADOS_CITA = ["Pendiente", "Completada", "Cancelada"];
 export const DURACION_CITA = ["15 min", "30 min", "1 hora", "2 horas"];
+
+// constants/index.js
+
+// constants/index.js
+export const SECTORES = [
+  "Sector Misericordia",
+  "Sector 1",
+  "Sector 2",
+  "Sector 3",
+  "Sector Flores",
+  "Sector Flores Torres",
+  "Sector Praderas",
+  "Sector Lomas",
+  "Otros"
+];

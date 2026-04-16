@@ -1,5 +1,5 @@
 // components/Agenda/ListaCitas.jsx
-function ListaCitas({ citas, onEditar, onEliminar, filtroMes }) {
+function ListaCitas({ citas, onEditar, onEliminar, filtroMes, rol }) {
   
   const getEstadoBadge = (estado) => {
     const classes = {
@@ -10,17 +10,17 @@ function ListaCitas({ citas, onEditar, onEliminar, filtroMes }) {
     return classes[estado] || 'bg-secondary';
   };
 
-  const getTipoIcon = (tipo) => {
-    const icons = {
-      'Llamada': '📞',
-      'Visita': '🏠',
-      'Reunión': '👥',
-      'Seguimiento': '🔄'
-    };
-    return icons[tipo] || '📅';
+  const getTipoIcono = (tipo) => {
+    switch (tipo) {
+      case 'Llamada': return 'fas fa-phone-alt';
+      case 'Visita': return 'fas fa-building';
+      case 'Reunión': return 'fas fa-users';
+      case 'Seguimiento': return 'fas fa-tasks';
+      default: return 'fas fa-calendar-alt';
+    }
   };
 
-  // Filtrar citas por mes si hay filtro
+  // Filtrar citas por mes
   const citasFiltradas = filtroMes 
     ? citas.filter(cita => cita.fecha?.startsWith(filtroMes))
     : citas;
@@ -33,83 +33,97 @@ function ListaCitas({ citas, onEditar, onEliminar, filtroMes }) {
     return grupo;
   }, {});
 
-  // Ordenar fechas
   const fechasOrdenadas = Object.keys(citasPorFecha).sort().reverse();
 
   if (citasFiltradas.length === 0) {
     return (
       <div className="text-center py-5">
-        <div className="display-1 mb-3">📅</div>
-        <h4 className="text-muted">No hay citas agendadas</h4>
-        <p className="text-muted">Haz clic en "+ Nueva Cita" para programar una reunión</p>
+        <i className="fas fa-calendar-alt fa-2x text-muted mb-2"></i>
+        <p className="text-muted mb-0">No hay citas agendadas</p>
       </div>
     );
   }
 
   return (
-    <div className="row">
+    <div className="row g-2">
       {fechasOrdenadas.map(fecha => (
-        <div key={fecha} className="col-12 mb-4">
+        <div key={fecha} className="col-12">
           <div className="card shadow-sm border-0">
-            <div className="card-header bg-dark text-white">
-              <h5 className="mb-0">
-                📅 {new Date(fecha).toLocaleDateString('es-ES', {
+            <div className="card-header bg-dark text-white py-2">
+              <small className="fw-bold">
+                <i className="fas fa-calendar-day me-1"></i>
+                {new Date(fecha).toLocaleDateString('es-ES', {
                   weekday: 'long',
                   year: 'numeric',
                   month: 'long',
                   day: 'numeric'
                 })}
-              </h5>
+              </small>
             </div>
-            <div className="card-body">
+            <div className="card-body p-0">
               {citasPorFecha[fecha].map(cita => (
-                <div key={cita.id} className="card mb-2 border-start border-primary border-3">
-                  <div className="card-body py-3">
-                    <div className="row align-items-center">
-                      <div className="col-md-3">
-                        <h6 className="mb-1">
-                          {getTipoIcon(cita.tipo)} {cita.tipo}
-                        </h6>
-                        <span className="badge bg-secondary">⏰ {cita.hora}</span>
+                <div key={cita.id} className="border-bottom p-2 hover-bg-light">
+                  <div className="row align-items-center g-1">
+                    <div className="col-md-3">
+                      <div className="d-flex align-items-center gap-2">
+                        <i className={`${getTipoIcono(cita.tipo)} text-primary`} style={{ fontSize: '12px' }}></i>
+                        <div>
+                          <small className="fw-semibold d-block">{cita.tipo}</small>
+                          <small className="text-muted">{cita.hora}</small>
+                        </div>
                       </div>
-                      <div className="col-md-3">
-                        <strong>{cita.clienteNombre}</strong>
-                        <br />
-                        <small className="text-muted">Duración: {cita.duracion}</small>
+                    </div>
+                    <div className="col-md-3">
+                      <div className="d-flex align-items-center gap-2">
+                        <i className="fas fa-user-circle text-secondary" style={{ fontSize: '12px' }}></i>
+                        <div>
+                          <small className="fw-semibold d-block">{cita.clienteNombre}</small>
+                          <small className="text-muted">{cita.duracion}</small>
+                        </div>
                       </div>
-                      <div className="col-md-3">
-                        <span className={`badge ${getEstadoBadge(cita.estado)}`}>
-                          {cita.estado}
+                    </div>
+                    <div className="col-md-3">
+                      <span className={`badge ${getEstadoBadge(cita.estado)} px-2 py-1`} style={{ fontSize: '10px' }}>
+                        <i className={`${cita.estado === 'Pendiente' ? 'fas fa-clock' : cita.estado === 'Completada' ? 'fas fa-check' : 'fas fa-times'} me-1`}></i>
+                        {cita.estado}
+                      </span>
+                      {cita.recordatorio && (
+                        <span className="badge bg-info ms-1 px-2 py-1" style={{ fontSize: '10px' }}>
+                          <i className="fas fa-bell me-1"></i>
                         </span>
-                        {cita.recordatorio && (
-                          <span className="badge bg-info ms-2">🔔 Recordatorio</span>
-                        )}
-                      </div>
-                      <div className="col-md-3 text-end">
-                        <button 
-                          className="btn btn-sm btn-outline-primary me-2"
-                          onClick={() => onEditar(cita)}
-                        >
-                          ✏️ Editar
-                        </button>
+                      )}
+                    </div>
+                    <div className="col-md-3 text-end">
+                      <button 
+                        className="btn btn-sm btn-outline-primary me-1"
+                        onClick={() => onEditar(cita)}
+                        title="Editar"
+                        style={{ padding: '2px 6px', fontSize: '11px' }}
+                      >
+                        <i className="fas fa-edit"></i>
+                      </button>
+                      {rol === 'admin' && (
                         <button 
                           className="btn btn-sm btn-outline-danger"
                           onClick={() => onEliminar(cita.id, cita.clienteNombre)}
+                          title="Eliminar"
+                          style={{ padding: '2px 6px', fontSize: '11px' }}
                         >
-                          🗑️ Eliminar
+                          <i className="fas fa-trash-alt"></i>
                         </button>
+                      )}
+                    </div>
+                  </div>
+                  {cita.notas && (
+                    <div className="row mt-1">
+                      <div className="col-12">
+                        <small className="text-muted" style={{ fontSize: '10px' }}>
+                          <i className="fas fa-sticky-note me-1"></i>
+                          {cita.notas}
+                        </small>
                       </div>
                     </div>
-                    {cita.notas && (
-                      <div className="row mt-2">
-                        <div className="col-12">
-                          <small className="text-muted">
-                            📝 Notas: {cita.notas}
-                          </small>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  )}
                 </div>
               ))}
             </div>
