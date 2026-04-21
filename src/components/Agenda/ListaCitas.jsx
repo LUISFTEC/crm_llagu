@@ -20,12 +20,10 @@ function ListaCitas({ citas, onEditar, onEliminar, filtroMes, rol }) {
     }
   };
 
-  // Filtrar citas por mes
   const citasFiltradas = filtroMes 
     ? citas.filter(cita => cita.fecha?.startsWith(filtroMes))
     : citas;
 
-  // Agrupar citas por fecha
   const citasPorFecha = citasFiltradas.reduce((grupo, cita) => {
     const fecha = cita.fecha;
     if (!grupo[fecha]) grupo[fecha] = [];
@@ -53,10 +51,7 @@ function ListaCitas({ citas, onEditar, onEliminar, filtroMes, rol }) {
               <small className="fw-bold">
                 <i className="fas fa-calendar-day me-1"></i>
                 {new Date(fecha).toLocaleDateString('es-ES', {
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
+                  weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
                 })}
               </small>
             </div>
@@ -64,40 +59,53 @@ function ListaCitas({ citas, onEditar, onEliminar, filtroMes, rol }) {
               {citasPorFecha[fecha].map(cita => (
                 <div key={cita.id} className="border-bottom p-2 hover-bg-light">
                   <div className="row align-items-center g-1">
-                    <div className="col-md-3">
+                    {/* COLUMNA 1: TIPO Y HORA */}
+                    <div className="col-md-2">
                       <div className="d-flex align-items-center gap-2">
                         <i className={`${getTipoIcono(cita.tipo)} text-primary`} style={{ fontSize: '12px' }}></i>
                         <div>
                           <small className="fw-semibold d-block">{cita.tipo}</small>
-                          <small className="text-muted">{cita.hora}</small>
+                          <small className="text-muted" style={{ fontSize: '11px' }}>{cita.hora}</small>
                         </div>
                       </div>
                     </div>
+
+                    {/* COLUMNA 2: CLIENTE */}
                     <div className="col-md-3">
                       <div className="d-flex align-items-center gap-2">
                         <i className="fas fa-user-circle text-secondary" style={{ fontSize: '12px' }}></i>
                         <div>
                           <small className="fw-semibold d-block">{cita.clienteNombre}</small>
-                          <small className="text-muted">{cita.duracion}</small>
+                          <small className="text-muted" style={{ fontSize: '11px' }}>{cita.duracion}</small>
                         </div>
                       </div>
                     </div>
+
+                    {/* 👇 COLUMNA NUEVA: ASESOR 👇 */}
                     <div className="col-md-3">
+                      <div className="d-flex align-items-center gap-2">
+                        <i className="fas fa-id-badge text-info" style={{ fontSize: '12px' }}></i>
+                        <div>
+                          <small className="text-muted d-block" style={{ fontSize: '9px', textTransform: 'uppercase' }}>Asesor</small>
+                          <small className="fw-semibold" style={{ fontSize: '11px' }}>
+                            {cita.creadoPorEmail ? cita.creadoPorEmail.split('@')[0] : 'Sistema'}
+                          </small>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* COLUMNA 4: ESTADO */}
+                    <div className="col-md-2 text-center">
                       <span className={`badge ${getEstadoBadge(cita.estado)} px-2 py-1`} style={{ fontSize: '10px' }}>
-                        <i className={`${cita.estado === 'Pendiente' ? 'fas fa-clock' : cita.estado === 'Completada' ? 'fas fa-check' : 'fas fa-times'} me-1`}></i>
                         {cita.estado}
                       </span>
-                      {cita.recordatorio && (
-                        <span className="badge bg-info ms-1 px-2 py-1" style={{ fontSize: '10px' }}>
-                          <i className="fas fa-bell me-1"></i>
-                        </span>
-                      )}
                     </div>
-                    <div className="col-md-3 text-end">
+
+                    {/* COLUMNA 5: ACCIONES */}
+                    <div className="col-md-2 text-end">
                       <button 
                         className="btn btn-sm btn-outline-primary me-1"
                         onClick={() => onEditar(cita)}
-                        title="Editar"
                         style={{ padding: '2px 6px', fontSize: '11px' }}
                       >
                         <i className="fas fa-edit"></i>
@@ -106,7 +114,6 @@ function ListaCitas({ citas, onEditar, onEliminar, filtroMes, rol }) {
                         <button 
                           className="btn btn-sm btn-outline-danger"
                           onClick={() => onEliminar(cita.id, cita.clienteNombre)}
-                          title="Eliminar"
                           style={{ padding: '2px 6px', fontSize: '11px' }}
                         >
                           <i className="fas fa-trash-alt"></i>
@@ -114,6 +121,7 @@ function ListaCitas({ citas, onEditar, onEliminar, filtroMes, rol }) {
                       )}
                     </div>
                   </div>
+                  
                   {cita.notas && (
                     <div className="row mt-1">
                       <div className="col-12">

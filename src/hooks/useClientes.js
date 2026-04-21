@@ -1,27 +1,18 @@
 import { useState, useEffect } from 'react';
-import { collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase-config';
-import { useAuth } from './useAuth'; // 👈 IMPORTAMOS EL USUARIO
+import { useAuth } from './useAuth'; 
 
 export const useClientes = () => {
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { user, rol } = useAuth(); // 👈 OBTENEMOS LOS DATOS DE SESIÓN
+  const { user } = useAuth(); 
 
   useEffect(() => {
-    // Si no hay usuario logueado, no hacemos nada
     if (!user) return;
 
-    let consulta;
-    
-    // Aplicamos el filtro de seguridad según el rol
-    if (rol === 'admin') {
-      consulta = collection(db, 'clientes');
-    } else {
-      consulta = query(collection(db, 'clientes'), where("asesorId", "==", user.uid));
-    }
+    const consulta = collection(db, 'clientes');
 
-    // Usamos la 'consulta' filtrada en lugar de la colección completa
     const unsubscribe = onSnapshot(consulta, (snapshot) => {
       const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setClientes(docs);
@@ -31,11 +22,19 @@ export const useClientes = () => {
     });
 
     return () => unsubscribe();
-  }, [user, rol]); // 👈 Agregamos dependencias
+  }, [user]); 
 
   const agregarCliente = async (clienteData) => {
     try {
-      const docRef = await addDoc(collection(db, 'clientes'), clienteData);
+      // 👇 Capturamos quién CREÓ al cliente
+      const datosConAuditoria = {
+        ...clienteData,
+        creadoPorId: user.uid,
+        creadoPorEmail: user.email,
+        fechaCreacion: new Date().toISOString()
+      };
+
+      const docRef = await addDoc(collection(db, 'clientes'), datosConAuditoria);
       return { success: true, id: docRef.id };
     } catch (error) {
       console.error('Error al agregar:', error);
@@ -45,7 +44,15 @@ export const useClientes = () => {
 
   const actualizarCliente = async (id, clienteData) => {
     try {
-      await updateDoc(doc(db, 'clientes', id), clienteData);
+      // 👇 Capturamos quién ACTUALIZÓ al cliente
+      const datosConAuditoria = {
+        ...clienteData,
+        ultimaEdicionPorId: user.uid,
+        ultimaEdicionPorEmail: user.email,
+        fechaUltimaEdicion: new Date().toISOString()
+      };
+
+      await updateDoc(doc(db, 'clientes', id), datosConAuditoria);
       return { success: true };
     } catch (error) {
       console.error('Error al actualizar:', error);

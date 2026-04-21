@@ -1,13 +1,18 @@
 // hooks/useCitas.js
 import { useState, useEffect } from 'react';
-import { collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, where, orderBy } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
 import { db } from '../firebase-config';
+import { useAuth } from './useAuth'; // 👈 IMPORTAMOS EL USUARIO
 
 export const useCitas = () => {
   const [citas, setCitas] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth(); // 👈 OBTENEMOS LOS DATOS DEL AGENTE
 
   useEffect(() => {
+    // Si no hay usuario logueado, no hacemos nada
+    if (!user) return;
+
     // Ordenar por fecha y hora
     const q = query(collection(db, 'citas'), orderBy('fecha', 'desc'), orderBy('hora', 'asc'));
     
@@ -17,24 +22,40 @@ export const useCitas = () => {
       setLoading(false);
     });
     return () => unsubscribe();
-  }, []);
+  }, [user]); // 👈 Dependencia del usuario
 
   const agregarCita = async (citaData) => {
+    console.log("📌 Llegó a agregarCita con:", citaData);
+    
     try {
-      const docRef = await addDoc(collection(db, 'citas'), {
+      // 👇 Capturamos quién CREÓ la cita
+      const citaConAuditoria = {
         ...citaData,
+        creadoPorId: user?.uid || 'ID_Desconocido',
+        creadoPorEmail: user?.email || 'Sin correo',
         createdAt: new Date().toISOString()
-      });
+      };
+
+      const docRef = await addDoc(collection(db, 'citas'), citaConAuditoria);
+      console.log("📌 Documento creado:", docRef.id);
       return { success: true, id: docRef.id };
     } catch (error) {
-      console.error('Error al agregar cita:', error);
+      console.error('Error detallado:', error);
       return { success: false, error };
     }
   };
 
   const actualizarCita = async (id, citaData) => {
     try {
-      await updateDoc(doc(db, 'citas', id), citaData);
+      // 👇 Capturamos quién ACTUALIZÓ la cita
+      const citaConAuditoria = {
+        ...citaData,
+        ultimaEdicionPorId: user?.uid || 'ID_Desconocido',
+        ultimaEdicionPorEmail: user?.email || 'Sin correo',
+        updatedAt: new Date().toISOString()
+      };
+
+      await updateDoc(doc(db, 'citas', id), citaConAuditoria);
       return { success: true };
     } catch (error) {
       console.error('Error al actualizar cita:', error);
@@ -75,20 +96,4 @@ export const useCitas = () => {
     getCitasPorCliente,
     getCitasPorEstado
   };
-};
-
-const agregarCita = async (citaData) => {
-  console.log("📌 Llegó a agregarCita con:", citaData);  // ← Agrega esto
-  
-  try {
-    const docRef = await addDoc(collection(db, 'citas'), {
-      ...citaData,
-      createdAt: new Date().toISOString()
-    });
-    console.log("📌 Documento creado:", docRef.id);  // ← Agrega esto
-    return { success: true, id: docRef.id };
-  } catch (error) {
-    console.error('Error detallado:', error);  // ← Esto te dirá el error real
-    return { success: false, error };
-  }
 };
