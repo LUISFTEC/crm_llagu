@@ -1,148 +1,121 @@
-// components/CRM/CRMClientes.jsx
-import { useState, useEffect } from 'react';
-import { useClientes } from '../../hooks/useClientes';
-import { useAuth } from '../../hooks/useAuth'; 
-import { doc, getDoc } from 'firebase/firestore'; // 👈 Necesario para el nombre real
+import { useState } from 'react';
+import { useAuth } from '../../hooks/useAuth';
 import { db } from '../../firebase-config';
+import { collection, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore'; 
 import TablaClientes from './TablaClientes';
 import ModalCliente from './ModalCliente';
 
+// 🔥 1. AQUI IMPORTAMOS EL NUEVO PANEL DE LA MAGIA
+import ModalNuevaVenta from './ModalNuevaVenta'; 
+
 function CRMClientes() {
-  const { clientes, agregarCliente, actualizarCliente, eliminarCliente } = useClientes();
   const { user, rol } = useAuth();
-  
-  // 🆕 Estado para guardar el nombre real del usuario logueado
-  const [nombreRealUsuario, setNombreRealUsuario] = useState('');
-  
-  const [showModal, setShowModal] = useState(false);
+  const [modalActivo, setModalActivo] = useState(''); 
+  const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
   const [editMode, setEditMode] = useState(false);
-  const [selectedCliente, setSelectedCliente] = useState(null);
 
-  // 🕵️ BUSCAR NOMBRE REAL: Se ejecuta cuando el usuario se loguea
-  useEffect(() => {
-    const fetchUserData = async () => {
-      if (user?.uid) {
-        try {
-          const userRef = doc(db, 'usuarios', user.uid);
-          const userSnap = await getDoc(userRef);
-          if (userSnap.exists()) {
-            setNombreRealUsuario(userSnap.data().nombre); // Captura "Ana Lopez" etc.
-          }
-        } catch (error) {
-          console.error("Error obteniendo nombre del usuario:", error);
-        }
+  // GUARDAR CLIENTE
+  const handleSaveCliente = async (datos) => {
+    try {
+      if (editMode && clienteSeleccionado?.id) {
+        const docRef = doc(db, 'clientes', clienteSeleccionado.id);
+        await updateDoc(docRef, datos);
+        console.log('✅ Cliente actualizado:', clienteSeleccionado.id);
+      } else {
+        const docRef = await addDoc(collection(db, 'clientes'), datos);
+        console.log('✅ Nuevo cliente creado:', docRef.id);
       }
-    };
-    fetchUserData();
-  }, [user]);
-
-  const handleSave = async (formData) => {
-    const ahora = new Date();
-    const fechaHora = ahora.toLocaleString('es-PE', { 
-      year: 'numeric', month: '2-digit', day: '2-digit',
-      hour: '2-digit', minute: '2-digit', second: '2-digit'
-    });
-
-    const clienteData = {
-      ...formData,
-      nombre: formData.nombre.toUpperCase().trim(),
-      updatedAt: fechaHora,
       
-      // 🛡️ CAPTURA AUTOMÁTICA MEJORADA:
-      // Si eres admin, permitimos que venga un asesorId/agente del modal (si lo habilitas luego)
-      // Si eres asesor, ignoramos cualquier intento de hack y grabamos TU nombre real
-      asesorId: rol === 'admin' ? (formData.asesorId || user.uid) : user.uid,
-      
-      // ⚠️ AQUÍ ESTÁ EL TRUCO: Usamos 'agente' para que coincida con tu Tabla
-      agente: rol === 'admin' ? (formData.agente || 'Admin') : (nombreRealUsuario || user.email)
-    };
-
-    if (!editMode) {
-      clienteData.createdAt = fechaHora;
-    }
-
-    let result;
-    if (editMode && selectedCliente) {
-      result = await actualizarCliente(selectedCliente.id, clienteData);
-    } else {
-      result = await agregarCliente(clienteData);
-    }
-
-    if (result.success) {
-      setShowModal(false);
+      setModalActivo('');
+      setClienteSeleccionado(null);
       setEditMode(false);
-      setSelectedCliente(null);
-    } else {
-      alert('Error al guardar el cliente');
+      
+    } catch (error) {
+      console.error('❌ Error al guardar:', error);
+      alert('Error al guardar los datos.');
     }
   };
 
-  const handleEditar = (cliente) => {
-    setSelectedCliente(cliente);
-    setEditMode(true);
-    setShowModal(true);
-  };
-
-  const handleEliminar = async (id, nombre, clienteAsesorId) => {
-    const puedeEliminar = rol === 'admin' || user.uid === clienteAsesorId;
-
-    if (!puedeEliminar) {
-      alert('No tienes permiso para eliminar prospectos de otros agentes.');
-      return;
-    }
-
-    if (window.confirm(`¿Estás seguro de eliminar a ${nombre}?`)) {
-      const result = await eliminarCliente(id);
-      if (!result.success) {
-        alert('Error al eliminar el cliente');
-      }
+  // ELIMINAR CLIENTE
+  const handleEliminarCliente = async (id, nombre) => {
+    const confirmar = window.confirm(`¿Estás seguro de eliminar a ${nombre}?`);
+    if (!confirmar) return;
+    
+    try {
+      const docRef = doc(db, 'clientes', id);
+      await deleteDoc(docRef);
+      console.log('🗑️ Cliente eliminado:', id);
+    } catch (error) {
+      console.error('❌ Error al eliminar:', error);
+      alert('Error al eliminar el cliente.');
     }
   };
 
   return (
-    <div className="container-fluid px-4">
+    <div className="container-fluid px-4 pt-4">
+      
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
-          <h2 className="fw-bold mb-0">Seguimiento de Ventas</h2>
-          {/* 💡 Feedback visual para el usuario */}
-          <p className="text-muted">
-            Agente actual: <span className="badge bg-secondary">{nombreRealUsuario || 'Cargando...'}</span>
+          <h2 className="fw-bold mb-0">
+            <i className="fas fa-chart-line me-2"></i> Seguimiento de Ventas
+          </h2>
+          <p className="text-muted mt-2 mb-0 fs-6">
+            Agente actual: <span className="badge bg-secondary">{rol === 'admin' ? 'Administrador' : 'Asesor'}</span>
           </p>
         </div>
         
         <button 
-          className="btn btn-primary shadow-sm" 
+          className="btn btn-primary shadow-sm px-4 py-2" 
           onClick={() => {
+            setClienteSeleccionado(null);
             setEditMode(false);
-            setSelectedCliente(null);
-            setShowModal(true);
+            setModalActivo('cliente');
           }}
         >
-          <i className="bi bi-person-plus-fill me-2"></i>
-          Nuevo Prospecto
+          <i className="fas fa-plus-circle me-2"></i> Nuevo Prospecto
         </button>
       </div>
 
-      <TablaClientes 
-        clientes={clientes}
-        onEditar={handleEditar}
-        onEliminar={handleEliminar}
+      <div className="card shadow-sm border-0">
+        <TablaClientes 
+          rol={rol}
+          onEditar={(cliente) => {
+            setClienteSeleccionado(cliente);
+            setEditMode(true);
+            setModalActivo('cliente');
+          }}
+          onEliminar={handleEliminarCliente}
+          onRegistrarVenta={(cliente) => {
+            setClienteSeleccionado(cliente);
+            setModalActivo('venta'); // 👈 Esto activa el nuevo modal
+          }}
+        />
+      </div>
+      
+      <ModalCliente
+        show={modalActivo === 'cliente'}
+        initialData={clienteSeleccionado}
+        editMode={editMode}
         rol={rol}
-        currentUserId={user?.uid}
+        userEmail={user?.email}
+        onClose={() => {
+          setModalActivo('');
+          setClienteSeleccionado(null);
+          setEditMode(false);
+        }}
+        onSave={handleSaveCliente}
       />
 
-      <ModalCliente
-        show={showModal}
+      {/* 🔥 2. AQUI CONECTAMOS EL PANEL FINANCIERO AL FINAL DE TODO */}
+      <ModalNuevaVenta
+        show={modalActivo === 'venta'}
+        cliente={clienteSeleccionado}
         onClose={() => {
-          setShowModal(false);
-          setEditMode(false);
-          setSelectedCliente(null);
+          setModalActivo('');
+          setClienteSeleccionado(null);
         }}
-        onSave={handleSave}
-        editMode={editMode}
-        initialData={selectedCliente}
-        rol={rol} 
       />
+
     </div>
   );
 }

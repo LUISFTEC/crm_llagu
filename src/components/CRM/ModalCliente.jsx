@@ -2,11 +2,11 @@
 import { useState, useEffect } from 'react';
 import { ACUERDOS, ESTADOS_VENTA, SECTORES } from '../../constants';
 
-function ModalCliente({ show, onClose, onSave, editMode, initialData, rol }) {
+function ModalCliente({ show, onClose, onSave, editMode, initialData, rol, userEmail }) {
   const [formData, setFormData] = useState({
     nombre: '', telefono: '', correo: '', dni: '', fechaContacto: '',
     acuerdo: 'Llamar', estadoVenta: 'Prospecto', 
-    precio: '', sectorMz: '', montoSeparacion: '', montoFinanciamiento: ''
+    precio: '', sectorMz: '', mzLote: '', montoSeparacion: '', montoFinanciamiento: '' // 🔥 Agregado mzLote
   });
   
   const [errors, setErrors] = useState({});
@@ -16,13 +16,16 @@ function ModalCliente({ show, onClose, onSave, editMode, initialData, rol }) {
 
   useEffect(() => {
     if (initialData) {
+      // 🔥 MODO EDICIÓN: Mantener todos los datos originales
       setFormData(initialData);
     } else {
+      // 🔥 MODO NUEVO: Valores iniciales
       setFormData({
         nombre: '', telefono: '', correo: '', dni: '', 
         fechaContacto: new Date().toISOString().split('T')[0],
         acuerdo: 'Llamar', estadoVenta: 'Prospecto', 
-        precio: '', sectorMz: '', montoSeparacion: '', montoFinanciamiento: ''
+        precio: '', sectorMz: '', mzLote: '', montoSeparacion: '', montoFinanciamiento: '', // 🔥 Agregado mzLote
+        createdAt: new Date().toISOString() // Solo en nuevo
       });
     }
     setErrors({});
@@ -72,14 +75,18 @@ function ModalCliente({ show, onClose, onSave, editMode, initialData, rol }) {
     if (formData.telefono && !/^\d{9}$/.test(formData.telefono)) {
       newErrors.telefono = 'El teléfono debe tener exactamente 9 dígitos numéricos';
     }
+
+    // 🔥 NUEVA VALIDACIÓN: Si es cualquiera de estos 3 estados, el SECTOR es obligatorio
+    if (['Compró', 'Separó', 'Financió'].includes(formData.estadoVenta)) {
+      if (!formData.sectorMz.trim()) {
+        newErrors.sectorMz = 'Debe seleccionar un sector';
+      }
+    }
     
     // Validación para estado "Compró"
     if (formData.estadoVenta === 'Compró') {
       if (!formData.precio || parseFloat(formData.precio) <= 0) {
         newErrors.precio = 'Debe ingresar un precio válido';
-      }
-      if (!formData.sectorMz.trim()) {
-        newErrors.sectorMz = 'Debe seleccionar un sector';
       }
     }
     
@@ -104,7 +111,18 @@ function ModalCliente({ show, onClose, onSave, editMode, initialData, rol }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (validateForm()) {
-      onSave(formData);
+      if (editMode) {
+        // 🔥 MODO EDICIÓN: Solo enviar formData (ya tiene id, createdAt, agente originales)
+        onSave(formData);
+      } else {
+        // 🔥 MODO NUEVO: Agregar agente y createdAt
+        const datosCompletos = {
+          ...formData,
+          agente: userEmail || (rol === 'admin' ? 'Administrador' : 'Agente'),
+          createdAt: new Date().toISOString()
+        };
+        onSave(datosCompletos);
+      }
     }
   };
 
@@ -231,22 +249,35 @@ function ModalCliente({ show, onClose, onSave, editMode, initialData, rol }) {
                   {isCompleto && <small className="text-muted">Bloqueado - Cliente ya completó compra</small>}
                 </div>
 
-                {/* --- CAMPOS DINÁMICOS SEGÚN ESTADO --- */}
-                {formData.estadoVenta === 'Compró' && (
+                {/* 🔥 SECCIÓN UNIFICADA: Compró, Separó y Financió muestran lo mismo */}
+                {['Compró', 'Separó', 'Financió'].includes(formData.estadoVenta) && (
                   <div className="col-12 row g-3 mt-1 bg-success bg-opacity-10 p-3 rounded">
-                    <div className="col-md-6">
-                      <label className="form-label fw-bold text-success">Precio Final (S/)</label>
-                      <input 
-                        type="number" name="precio" 
-                        className={`form-control ${errors.precio ? 'is-invalid' : ''}`} 
-                        placeholder="0.00" 
-                        value={formData.precio} 
-                        onChange={handleChange} 
-                        disabled={isCompleto}
-                      />
-                      {errors.precio && <div className="invalid-feedback">{errors.precio}</div>}
+                    
+                    {/* 🔥 Cambiado a col-md-4 para que entren los 3 campos */}
+                    <div className="col-md-4">
+                      <label className="form-label fw-bold text-success">
+                        {formData.estadoVenta === 'Compró' && 'Precio Final (S/)'}
+                        {formData.estadoVenta === 'Separó' && 'Monto Separación (S/)'}
+                        {formData.estadoVenta === 'Financió' && 'Monto Financiado (S/)'}
+                      </label>
+                      
+                      {formData.estadoVenta === 'Compró' && (
+                        <input type="number" name="precio" className={`form-control ${errors.precio ? 'is-invalid' : ''}`} placeholder="0.00" value={formData.precio} onChange={handleChange} disabled={isCompleto} />
+                      )}
+                      {formData.estadoVenta === 'Separó' && (
+                        <input type="number" name="montoSeparacion" className={`form-control ${errors.montoSeparacion ? 'is-invalid' : ''}`} placeholder="0.00" value={formData.montoSeparacion} onChange={handleChange} disabled={isCompleto} />
+                      )}
+                      {formData.estadoVenta === 'Financió' && (
+                        <input type="number" name="montoFinanciamiento" className={`form-control ${errors.montoFinanciamiento ? 'is-invalid' : ''}`} placeholder="0.00" value={formData.montoFinanciamiento} onChange={handleChange} disabled={isCompleto} />
+                      )}
+
+                      {errors.precio && formData.estadoVenta === 'Compró' && <div className="invalid-feedback d-block">{errors.precio}</div>}
+                      {errors.montoSeparacion && formData.estadoVenta === 'Separó' && <div className="invalid-feedback d-block">{errors.montoSeparacion}</div>}
+                      {errors.montoFinanciamiento && formData.estadoVenta === 'Financió' && <div className="invalid-feedback d-block">{errors.montoFinanciamiento}</div>}
                     </div>
-                    <div className="col-md-6">
+
+                    {/* 🔥 Cambiado a col-md-4 */}
+                    <div className="col-md-4">
                       <label className="form-label fw-bold text-success">Sector</label>
                       <select 
                         name="sectorMz" 
@@ -262,38 +293,24 @@ function ModalCliente({ show, onClose, onSave, editMode, initialData, rol }) {
                       </select>
                       {errors.sectorMz && <div className="invalid-feedback">{errors.sectorMz}</div>}
                     </div>
+
+                    {/* 🔥 NUEVO CAMPO: Mz & Lt (Añadido exactamente como pediste) */}
+                    <div className="col-md-4">
+                      <label className="form-label fw-bold text-success">Mz & Lt</label>
+                      <input 
+                        type="text" 
+                        name="mzLote" 
+                        className="form-control" 
+                        placeholder="Ej: Mz A Lt 5" 
+                        value={formData.mzLote} 
+                        onChange={handleChange} 
+                        disabled={isCompleto}
+                      />
+                    </div>
+
                   </div>
                 )}
 
-                {formData.estadoVenta === 'Separó' && (
-                  <div className="col-12 bg-warning bg-opacity-10 p-3 rounded">
-                    <label className="form-label fw-bold text-warning">Monto Separación (S/)</label>
-                    <input 
-                      type="number" name="montoSeparacion" 
-                      className={`form-control ${errors.montoSeparacion ? 'is-invalid' : ''}`} 
-                      placeholder="0.00" 
-                      value={formData.montoSeparacion} 
-                      onChange={handleChange} 
-                      disabled={isCompleto}
-                    />
-                    {errors.montoSeparacion && <div className="invalid-feedback">{errors.montoSeparacion}</div>}
-                  </div>
-                )}
-
-                {formData.estadoVenta === 'Financió' && (
-                  <div className="col-12 bg-info bg-opacity-10 p-3 rounded">
-                    <label className="form-label fw-bold text-info">Monto Financiado (S/)</label>
-                    <input 
-                      type="number" name="montoFinanciamiento" 
-                      className={`form-control ${errors.montoFinanciamiento ? 'is-invalid' : ''}`} 
-                      placeholder="0.00" 
-                      value={formData.montoFinanciamiento} 
-                      onChange={handleChange} 
-                      disabled={isCompleto}
-                    />
-                    {errors.montoFinanciamiento && <div className="invalid-feedback">{errors.montoFinanciamiento}</div>}
-                  </div>
-                )}
               </div>
             </div>
 
