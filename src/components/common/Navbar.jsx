@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 // 1. Importamos los componentes necesarios de FontAwesome
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faHome, faChartBar, faCalendarAlt, faBullseye, faSignOutAlt } from '@fortawesome/free-solid-svg-icons';
+import { faHome, faChartBar, faCalendarAlt, faBullseye, faSignOutAlt, faMoneyBillWave } from '@fortawesome/free-solid-svg-icons';
 
 const Navbar = ({ activeTab, onTabChange, userEmail, userRol, onLogout }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -52,14 +52,18 @@ const Navbar = ({ activeTab, onTabChange, userEmail, userRol, onLogout }) => {
             iconObj={faCalendarAlt} 
             label="Agenda" 
           />
-          {userRol === 'admin' && (
-            <NavButton 
-              active={activeTab === 'pipeline'} 
-              onClick={() => handleTabClick('pipeline')}
-              iconObj={faBullseye} 
-              label="Pipeline" 
-            />
-          )}
+          <NavButton 
+            active={activeTab === 'pipeline'} 
+            onClick={() => handleTabClick('pipeline')}
+            iconObj={faBullseye} 
+            label="Pipeline" 
+          />
+          <NavButton 
+            active={activeTab === 'finanzas'} 
+            onClick={() => handleTabClick('finanzas')}
+            iconObj={faMoneyBillWave} 
+            label="Finanzas" 
+          />
         </div>
 
         {/* Perfil de Usuario / Dropdown */}

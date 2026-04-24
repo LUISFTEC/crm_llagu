@@ -1,28 +1,38 @@
 // components/CRM/ModalNuevaVenta.jsx
 import React, { useState, useEffect } from 'react';
+import { usePlanesPago } from '../../hooks/usePlanesPago';
+// 🔥 IMPORTACIONES PARA ACTUALIZAR AL CLIENTE EN FIREBASE
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../../firebase-config';
 
 function ModalNuevaVenta({ show, onClose, cliente }) {
   const [precioTotal, setPrecioTotal] = useState('');
   const [pagoInicial, setPagoInicial] = useState('');
-  const [numCuotas, setNumCuotas] = useState(1); 
+  const [numCuotas, setNumCuotas] = useState(1);
   const [fechaInicio, setFechaInicio] = useState(new Date().toISOString().split('T')[0]);
   const [cronograma, setCronograma] = useState([]);
+  const [guardando, setGuardando] = useState(false);
+  const [mensajeExito, setMensajeExito] = useState('');
 
+  const { guardarPlanPago } = usePlanesPago();
+
+  // ✅ CORRECCIÓN DE ERROR: Sincronización de estados sin renders en cascada
   useEffect(() => {
-    if (cliente) {
+    if (show && cliente) {
       setPrecioTotal(cliente.precio || '');
       setPagoInicial(cliente.montoSeparacion || cliente.montoFinanciamiento || '');
-      
-      // 🔥 Lógica de bloqueo: Si es Separó, forzamos 1 cuota siempre
+
+      // Determinar cuotas iniciales por estado
       if (cliente.estadoVenta === 'Separó') {
         setNumCuotas(1);
       } else if (cliente.estadoVenta === 'Financió') {
-        setNumCuotas(12); // Sugerencia inicial para financiamiento
+        setNumCuotas(12);
       }
-      
-      setCronograma([]); 
+
+      setCronograma([]);
+      setMensajeExito('');
     }
-  }, [cliente, show]);
+  }, [cliente?.id, show]); // Solo se dispara cuando cambia el ID del cliente o se abre el modal
 
   const saldoFinanciar = (Number(precioTotal) || 0) - (Number(pagoInicial) || 0);
 
@@ -38,11 +48,58 @@ function ModalNuevaVenta({ show, onClose, cliente }) {
       nuevoCronograma.push({
         cuota: i,
         fechaPago: fechaActual.toLocaleDateString('es-PE'),
-        monto: montoMensual,
+        monto: Number(montoMensual.toFixed(2)),
+        pagado: false,
+        fechaPagoReal: null
       });
       fechaActual.setMonth(fechaActual.getMonth() + 1);
     }
     setCronograma(nuevoCronograma);
+  };
+
+  const confirmarYGuardar = async () => {
+    if (cronograma.length === 0) return;
+    
+    setGuardando(true);
+    
+    const planData = {
+      clienteId: cliente.id,
+      clienteNombre: cliente.nombre,
+      clienteDni: cliente.dni,
+      estadoVenta: cliente.estadoVenta,
+      precioTotal: Number(precioTotal),
+      pagoInicial: Number(pagoInicial),
+      saldoFinanciar: Number(saldoFinanciar.toFixed(2)),
+      numCuotas: numCuotas,
+      fechaInicio: fechaInicio,
+      fechaVencimiento: cronograma[cronograma.length - 1].fechaPago,
+      cronograma: cronograma,
+      agente: cliente.agente || 'No asignado'
+    };
+
+    const resultado = await guardarPlanPago(planData);
+    
+    if (resultado.success) {
+      // 🚀 PASO CLAVE: Marcamos al cliente con planGenerado: true
+      try {
+        const clienteRef = doc(db, 'clientes', cliente.id);
+        await updateDoc(clienteRef, {
+          planGenerado: true 
+        });
+      } catch (error) {
+        console.error("Error al actualizar cliente:", error);
+      }
+
+      setMensajeExito('✅ Plan de pagos guardado exitosamente');
+      setTimeout(() => {
+        onClose();
+        setMensajeExito('');
+      }, 1500);
+    } else {
+      alert('Error al guardar el plan de pagos');
+    }
+    
+    setGuardando(false);
   };
 
   if (!show || !cliente) return null;
@@ -51,7 +108,7 @@ function ModalNuevaVenta({ show, onClose, cliente }) {
     <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 1050 }}>
       <div className="modal-dialog modal-xl modal-dialog-centered">
         <div className="modal-content border-0 shadow-lg">
-          
+
           <div className="modal-header bg-success text-white">
             <h5 className="modal-title fw-bold">
               <i className="fas fa-magic me-2"></i> Plan de Pagos: {cliente.nombre}
@@ -60,10 +117,16 @@ function ModalNuevaVenta({ show, onClose, cliente }) {
           </div>
 
           <div className="modal-body p-4">
+            {mensajeExito && (
+              <div className="alert alert-success text-center fw-bold">
+                {mensajeExito}
+              </div>
+            )}
+          
             <div className="row">
               <div className="col-md-4 border-end">
                 <div className={`badge mb-3 p-2 ${cliente.estadoVenta === 'Separó' ? 'bg-warning text-dark' : 'bg-primary'}`}>
-                    Estado Actual: {cliente.estadoVenta}
+                  Estado Actual: {cliente.estadoVenta}
                 </div>
                 <form onSubmit={generarCronograma}>
                   <div className="mb-3">
@@ -91,10 +154,9 @@ function ModalNuevaVenta({ show, onClose, cliente }) {
 
                   <div className="mb-3">
                     <label className="form-label small fw-bold text-muted">PLAZO PARA CANCELAR EL SALDO</label>
-                    {/* 🔥 AQUÍ LA MAGIA: Si es 'Separó', el select se deshabilita */}
-                    <select 
-                      className="form-select border-primary fw-bold shadow-sm" 
-                      value={numCuotas} 
+                    <select
+                      className="form-select border-primary fw-bold shadow-sm"
+                      value={numCuotas}
                       onChange={(e) => setNumCuotas(Number(e.target.value))}
                       disabled={cliente.estadoVenta === 'Separó'}
                     >
@@ -109,11 +171,6 @@ function ModalNuevaVenta({ show, onClose, cliente }) {
                         </>
                       )}
                     </select>
-                    {cliente.estadoVenta === 'Separó' && (
-                      <small className="text-info mt-1 d-block font-italic">
-                        * Bloqueado a 1 mes por ser estado "Separó"
-                      </small>
-                    )}
                   </div>
 
                   <div className="mb-4">
@@ -129,34 +186,34 @@ function ModalNuevaVenta({ show, onClose, cliente }) {
 
               <div className="col-md-8 bg-white">
                 <div className="p-3">
-                    <h6 className="fw-bold text-secondary border-bottom pb-2">Vista Previa del Plan de Pagos</h6>
-                    {cronograma.length > 0 ? (
+                  <h6 className="fw-bold text-secondary border-bottom pb-2">Vista Previa del Plan de Pagos</h6>
+                  {cronograma.length > 0 ? (
                     <div className="table-responsive" style={{ maxHeight: '450px' }}>
-                        <table className="table table-hover align-middle">
+                      <table className="table table-hover align-middle">
                         <thead className="table-light">
-                            <tr className="text-center">
+                          <tr className="text-center">
                             <th>N° Cuota</th>
                             <th>Fecha de Vencimiento</th>
                             <th>Monto a Pagar</th>
-                            </tr>
+                          </tr>
                         </thead>
                         <tbody>
-                            {cronograma.map((c) => (
+                          {cronograma.map((c) => (
                             <tr key={c.cuota} className="text-center">
-                                <td className="fw-bold text-muted">{c.cuota}</td>
-                                <td>{c.fechaPago}</td>
-                                <td className="fw-bold text-dark">S/ {c.monto.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                              <td className="fw-bold text-muted">{c.cuota}</td>
+                              <td>{c.fechaPago}</td>
+                              <td className="fw-bold text-dark">S/ {c.monto.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                             </tr>
-                            ))}
+                          ))}
                         </tbody>
-                        </table>
+                      </table>
                     </div>
-                    ) : (
+                  ) : (
                     <div className="text-center py-5">
-                        <i className="fas fa-file-invoice-dollar fa-4x text-light mb-3"></i>
-                        <p className="text-muted">Presiona el botón verde para calcular el saldo restante.</p>
+                      <i className="fas fa-file-invoice-dollar fa-4x text-light mb-3"></i>
+                      <p className="text-muted">Presiona el botón verde para calcular el saldo restante.</p>
                     </div>
-                    )}
+                  )}
                 </div>
               </div>
             </div>
@@ -164,8 +221,17 @@ function ModalNuevaVenta({ show, onClose, cliente }) {
 
           <div className="modal-footer bg-light border-top-0">
             <button type="button" className="btn btn-link text-muted" onClick={onClose}>Cancelar</button>
-            <button type="button" className="btn btn-primary px-5 fw-bold shadow" disabled={cronograma.length === 0}>
-              <i className="fas fa-check-circle me-2"></i> CONFIRMAR Y GUARDAR VENTA
+            <button
+              type="button"
+              className="btn btn-primary px-5 fw-bold shadow"
+              disabled={cronograma.length === 0 || guardando}
+              onClick={confirmarYGuardar}
+            >
+              {guardando ? (
+                <><i className="fas fa-spinner fa-spin me-2"></i> GUARDANDO...</>
+              ) : (
+                <><i className="fas fa-check-circle me-2"></i> CONFIRMAR Y GUARDAR VENTA</>
+              )}
             </button>
           </div>
 

@@ -6,6 +6,7 @@ import { ESTADO_BADGE_CLASSES } from '../../constants';
 function TablaClientes({ onEditar, onEliminar, onRegistrarVenta, rol }) {
   const [clientes, setClientes] = useState([]);
   const [cargando, setCargando] = useState(true);
+  const [busqueda, setBusqueda] = useState('');
 
   useEffect(() => {
     const clientesRef = collection(db, 'clientes');
@@ -24,7 +25,23 @@ function TablaClientes({ onEditar, onEliminar, onRegistrarVenta, rol }) {
     return () => unsubscribe();
   }, []);
 
-  // 🔥 AQUÍ ESTÁ LA CORRECCIÓN: Ahora lee el sector en los 3 estados
+  const clientesFiltrados = clientes.filter(cliente => {
+    if (!busqueda.trim()) return true;
+    
+    const termino = busqueda.toLowerCase().trim();
+    
+    return (
+      cliente.nombre?.toLowerCase().includes(termino) ||
+      cliente.dni?.toString().includes(termino) ||
+      cliente.telefono?.toString().includes(termino) ||
+      cliente.correo?.toLowerCase().includes(termino) ||
+      cliente.agente?.toLowerCase().includes(termino) ||
+      cliente.estadoVenta?.toLowerCase().includes(termino) ||
+      cliente.sectorMz?.toLowerCase().includes(termino) ||
+      cliente.acuerdo?.toLowerCase().includes(termino)
+    );
+  });
+
   const getDetallesExtra = (cliente) => {
     switch (cliente.estadoVenta) {
       case 'Compró':
@@ -48,12 +65,10 @@ function TablaClientes({ onEditar, onEliminar, onRegistrarVenta, rol }) {
     }
   };
 
-  // Determina si un cliente está en estado "activo" para venta
   const esClienteActivo = (estadoVenta) => {
     return estadoVenta === 'Separó' || estadoVenta === 'Financió';
   };
 
-  // Obtiene el ícono según el estado
   const getIconoEstado = (estadoVenta) => {
     switch (estadoVenta) {
       case 'Separó':
@@ -73,6 +88,45 @@ function TablaClientes({ onEditar, onEliminar, onRegistrarVenta, rol }) {
 
   return (
     <div className="card shadow-sm border-0">
+      <div className="card-header bg-white border-bottom p-3">
+        <div className="row align-items-center">
+          <div className="col-md-6">
+            <div className="input-group">
+              <span className="input-group-text bg-white border-end-0">
+                <i className="fas fa-search text-muted"></i>
+              </span>
+              <input
+                type="text"
+                className="form-control border-start-0 ps-0"
+                placeholder="Buscar por nombre, DNI, teléfono, estado..."
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                style={{ boxShadow: 'none' }}
+              />
+              {busqueda && (
+                <button 
+                  className="btn btn-outline-secondary border-start-0" 
+                  onClick={() => setBusqueda('')}
+                  title="Limpiar búsqueda"
+                >
+                  <i className="fas fa-times"></i>
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="col-md-6 text-md-end mt-2 mt-md-0">
+            <small className="text-muted">
+              <i className="fas fa-users me-1"></i>
+              {busqueda ? (
+                <>Mostrando {clientesFiltrados.length} de {clientes.length} clientes</>
+              ) : (
+                <>{clientes.length} clientes registrados</>
+              )}
+            </small>
+          </div>
+        </div>
+      </div>
+
       <div className="table-responsive" style={{ overflowX: 'auto', maxWidth: '100%', maxHeight: '70vh' }}>
         <table className="table table-bordered table-hover align-middle mb-0" style={{ fontSize: '0.875rem', minWidth: '900px' }}>
           
@@ -106,10 +160,28 @@ function TablaClientes({ onEditar, onEliminar, onRegistrarVenta, rol }) {
                   No hay clientes registrados en el sistema
                 </td>
               </tr>
+            ) : clientesFiltrados.length === 0 ? (
+              <tr>
+                <td colSpan={rol === 'admin' ? 8 : 7} className="text-center py-5">
+                  <i className="fas fa-search fa-2x mb-2 d-block text-warning"></i>
+                  <span className="text-muted">No se encontraron clientes con "</span>
+                  <strong className="text-dark">{busqueda}</strong>
+                  <span className="text-muted">"</span>
+                </td>
+              </tr>
             ) : (
-              clientes.map(cliente => {
+              clientesFiltrados.map(cliente => {
                 const esActivo = esClienteActivo(cliente.estadoVenta);
                 const esSeparado = cliente.estadoVenta === 'Separó';
+                
+                const formatearFecha = (fecha) => {
+                  if (!fecha) return '—';
+                  if (fecha.includes('-')) {
+                    const [y, m, d] = fecha.split('-');
+                    return `${d}/${m}/${y}`;
+                  }
+                  return fecha;
+                };
                 
                 return (
                   <tr 
@@ -126,7 +198,7 @@ function TablaClientes({ onEditar, onEliminar, onRegistrarVenta, rol }) {
                       {cliente.correo && <div className="small text-truncate" style={{ maxWidth: '180px' }}><i className="fas fa-envelope me-1"></i> {cliente.correo}</div>}
                       {!cliente.telefono && !cliente.correo && <span className="text-muted">—</span>}
                     </td>
-                    <td className="py-2 px-3">{cliente.fechaContacto || '—'}</td>
+                    <td className="py-2 px-3">{formatearFecha(cliente.fechaContacto)}</td>
                     
                     {rol === 'admin' && (
                       <td className="py-2 px-3">
@@ -158,40 +230,56 @@ function TablaClientes({ onEditar, onEliminar, onRegistrarVenta, rol }) {
                         <i className="fas fa-edit"></i>
                       </button>
 
-                      {/* BOTÓN VERDE CON CHECK - SOLO ÍCONO */}
+                      {/* 🔥 BOTÓN INTELIGENTE QUE CAMBIA SEGÚN ESTADO 🔥 */}
                       {esActivo && (
-                        <button 
-                          className="btn btn-sm btn-success me-1 mb-1"
-                          onClick={() => onRegistrarVenta(cliente)}
-                          title={esSeparado ? "💰 YA SEPARÓ - Ver detalles" : "📋 YA FINANCIÓ - Ver cronograma"}
-                          style={{ position: 'relative' }}
-                        >
-                          {esSeparado ? (
-                            <>
-                              <i className="fas fa-hand-holding-usd"></i>
-                              <span style={{
-                                position: 'absolute', top: '-5px', right: '-5px', backgroundColor: '#15803d',
-                                borderRadius: '50%', width: '16px', height: '16px', display: 'flex',
-                                alignItems: 'center', justifyContent: 'center', fontSize: '10px',
-                                border: '2px solid white'
-                              }}>
-                                <i className="fas fa-check" style={{ color: 'white', fontSize: '8px' }}></i>
-                              </span>
-                            </>
+                        <>
+                          {!cliente.planGenerado ? (
+                            // 👇 SIN PLAN: Botón VERDE para generar
+                            <button 
+                              className="btn btn-sm btn-success me-1 mb-1"
+                              onClick={() => onRegistrarVenta(cliente)}
+                              title={esSeparado ? "💰 GENERAR CRONOGRAMA DE SEPARACIÓN" : "📋 GENERAR CRONOGRAMA DE FINANCIAMIENTO"}
+                              style={{ position: 'relative' }}
+                            >
+                              {esSeparado ? (
+                                <i className="fas fa-hand-holding-usd"></i>
+                              ) : (
+                                <i className="fas fa-file-invoice-dollar"></i>
+                              )}
+                            </button>
                           ) : (
-                            <>
-                              <i className="fas fa-file-invoice-dollar"></i>
+                            // 👇 CON PLAN: Botón AZUL/MORADO con check ✅ (SOLO VISUAL)
+                            <button 
+                              className="btn btn-sm btn-info me-1 mb-1"
+                              style={{ 
+                                position: 'relative',
+                                backgroundColor: '#6366f1', // Morado/índigo
+                                borderColor: '#6366f1',
+                                color: 'white',
+                                cursor: 'default' // 👈 Indica que no es clickeable
+                              }}
+                              title="✅ Plan generado - Ver detalles en sección FINANZAS"
+                              disabled // 👈 Lo deshabilitamos porque ya no hace nada
+                            >
+                              <i className="fas fa-check-circle"></i>
                               <span style={{
-                                position: 'absolute', top: '-5px', right: '-5px', backgroundColor: '#15803d',
-                                borderRadius: '50%', width: '16px', height: '16px', display: 'flex',
-                                alignItems: 'center', justifyContent: 'center', fontSize: '10px',
+                                position: 'absolute', 
+                                top: '-5px', 
+                                right: '-5px', 
+                                backgroundColor: '#10b981', // Verde check
+                                borderRadius: '50%', 
+                                width: '16px', 
+                                height: '16px', 
+                                display: 'flex',
+                                alignItems: 'center', 
+                                justifyContent: 'center',
                                 border: '2px solid white'
                               }}>
                                 <i className="fas fa-check" style={{ color: 'white', fontSize: '8px' }}></i>
                               </span>
-                            </>
+                            </button>
                           )}
-                        </button>
+                        </>
                       )}
 
                       {rol === 'admin' && (

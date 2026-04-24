@@ -16,7 +16,7 @@ function LeadsList({ rol }) {
       case 'Negociación': return 'contactado';
       case 'Separó': return 'separado';
       case 'Compró': return 'vendido';
-      case 'Financió': return 'vendido';
+      case 'Financió': return 'financiado';
       default: return 'lead';
     }
   };
@@ -27,6 +27,7 @@ function LeadsList({ rol }) {
       case 'contactado': return '#3b82f6';
       case 'separado': return '#f59e0b';
       case 'vendido': return '#10b981';
+      case 'financiado': return '#06b6d4';
       default: return '#6b7280';
     }
   };
@@ -37,6 +38,7 @@ function LeadsList({ rol }) {
       case 'contactado': return 'fas fa-phone-alt';
       case 'separado': return 'fas fa-hand-holding-usd';
       case 'vendido': return 'fas fa-trophy';
+      case 'financiado': return 'fas fa-credit-card';
       default: return 'fas fa-chart-line';
     }
   };
@@ -57,7 +59,8 @@ function LeadsList({ rol }) {
     { id: 'lead', nombre: 'Prospectos' },
     { id: 'contactado', nombre: 'Negociación' },
     { id: 'separado', nombre: 'Separados' },
-    { id: 'vendido', nombre: 'Vendidos' }
+    { id: 'vendido', nombre: 'Vendidos' },
+    { id: 'financiado', nombre: 'Financiados' }
   ];
 
   // Filtrar clientes por etapa
@@ -95,7 +98,7 @@ function LeadsList({ rol }) {
           const color = getEtapaColor(etapa.id);
           
           return (
-            <div key={etapa.id} className="col-md-3">
+            <div key={etapa.id} className="col-md-4 col-lg">
               <div className="card shadow-sm border-0 h-100">
                 <div className="card-header py-2" style={{ backgroundColor: color, color: 'white' }}>
                   <div className="d-flex justify-content-between align-items-center">
@@ -147,6 +150,11 @@ function LeadsList({ rol }) {
                               <i className="fas fa-hand-holding-usd me-1"></i>S/ {cliente.montoSeparacion.toLocaleString()}
                             </div>
                           )}
+                          {cliente.estadoVenta === 'Financió' && cliente.precio && (
+                            <div className="small text-info mt-1">
+                              <i className="fas fa-credit-card me-1"></i>S/ {cliente.precio.toLocaleString()}
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))
@@ -191,12 +199,12 @@ function LeadsList({ rol }) {
                   <div className="col-6">
                     <small className="text-muted">Estado</small>
                     <div>
-                      <span className={`badge ${selectedLead.estadoVenta === 'Compró' ? 'bg-success' : selectedLead.estadoVenta === 'Separó' ? 'bg-warning' : 'bg-secondary'}`}>
+                      <span className={`badge ${selectedLead.estadoVenta === 'Compró' ? 'bg-success' : selectedLead.estadoVenta === 'Separó' ? 'bg-warning' : selectedLead.estadoVenta === 'Financió' ? 'bg-info' : 'bg-secondary'}`}>
                         {selectedLead.estadoVenta}
                       </span>
                     </div>
                   </div>
-                  {(selectedLead.estadoVenta === 'Compró' || selectedLead.estadoVenta === 'Separó') && (
+                  {(selectedLead.estadoVenta === 'Compró' || selectedLead.estadoVenta === 'Separó' || selectedLead.estadoVenta === 'Financió') && (
                     <div className="col-6">
                       <small className="text-muted">Monto</small>
                       <div className="small fw-bold">

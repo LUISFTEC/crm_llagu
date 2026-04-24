@@ -6,26 +6,27 @@ function ModalCliente({ show, onClose, onSave, editMode, initialData, rol, userE
   const [formData, setFormData] = useState({
     nombre: '', telefono: '', correo: '', dni: '', fechaContacto: '',
     acuerdo: 'Llamar', estadoVenta: 'Prospecto', 
-    precio: '', sectorMz: '', mzLote: '', montoSeparacion: '', montoFinanciamiento: '' // 🔥 Agregado mzLote
+    precio: '', sectorMz: '', mzLote: '', montoSeparacion: '', montoFinanciamiento: ''
   });
   
   const [errors, setErrors] = useState({});
 
-  // 🔒 BLOQUEO: Solo para AGENTES cuando el estado ORIGINAL es "Compró"
+  // 🔒 BLOQUEO ORIGINAL: Solo para AGENTES cuando el estado ORIGINAL es "Compró"
   const isCompleto = editMode && rol !== 'admin' && initialData?.estadoVenta === 'Compró';
+
+  // 🔥 NUEVA LÓGICA DE BLOQUEO: Detectar si ya tiene cronograma generado
+  const tienePlanGenerado = editMode && initialData?.planGenerado === true;
 
   useEffect(() => {
     if (initialData) {
-      // 🔥 MODO EDICIÓN: Mantener todos los datos originales
       setFormData(initialData);
     } else {
-      // 🔥 MODO NUEVO: Valores iniciales
       setFormData({
         nombre: '', telefono: '', correo: '', dni: '', 
         fechaContacto: new Date().toISOString().split('T')[0],
         acuerdo: 'Llamar', estadoVenta: 'Prospecto', 
-        precio: '', sectorMz: '', mzLote: '', montoSeparacion: '', montoFinanciamiento: '', // 🔥 Agregado mzLote
-        createdAt: new Date().toISOString() // Solo en nuevo
+        precio: '', sectorMz: '', mzLote: '', montoSeparacion: '', montoFinanciamiento: '',
+        createdAt: new Date().toISOString()
       });
     }
     setErrors({});
@@ -33,23 +34,17 @@ function ModalCliente({ show, onClose, onSave, editMode, initialData, rol, userE
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    
-    // Validar DNI: solo números y máximo 8 dígitos
     if (name === 'dni') {
       const onlyNumbers = value.replace(/\D/g, '').slice(0, 8);
       setFormData({ ...formData, [name]: onlyNumbers });
     }
-    // Validar Teléfono: solo números y máximo 9 dígitos
     else if (name === 'telefono') {
       const onlyNumbers = value.replace(/\D/g, '').slice(0, 9);
       setFormData({ ...formData, [name]: onlyNumbers });
     }
-    // Otros campos
     else {
       setFormData({ ...formData, [name]: value });
     }
-    
-    // Limpiar error del campo cuando el usuario escribe
     if (errors[name]) {
       setErrors({ ...errors, [name]: '' });
     }
@@ -57,53 +52,13 @@ function ModalCliente({ show, onClose, onSave, editMode, initialData, rol, userE
 
   const validateForm = () => {
     const newErrors = {};
-    
-    // Validación nombre
-    if (!formData.nombre.trim()) {
-      newErrors.nombre = 'El nombre es obligatorio';
-    }
-    
-    // Validación DNI: solo números y 8 dígitos
+    if (!formData.nombre.trim()) newErrors.nombre = 'El nombre es obligatorio';
     const dniRegex = /^\d{8}$/;
     if (!formData.dni.trim()) {
       newErrors.dni = 'El DNI es obligatorio';
     } else if (!dniRegex.test(formData.dni)) {
-      newErrors.dni = 'El DNI debe tener exactamente 8 dígitos numéricos';
+      newErrors.dni = 'El DNI debe tener 8 dígitos';
     }
-    
-    // Validación Teléfono (si tiene teléfono)
-    if (formData.telefono && !/^\d{9}$/.test(formData.telefono)) {
-      newErrors.telefono = 'El teléfono debe tener exactamente 9 dígitos numéricos';
-    }
-
-    // 🔥 NUEVA VALIDACIÓN: Si es cualquiera de estos 3 estados, el SECTOR es obligatorio
-    if (['Compró', 'Separó', 'Financió'].includes(formData.estadoVenta)) {
-      if (!formData.sectorMz.trim()) {
-        newErrors.sectorMz = 'Debe seleccionar un sector';
-      }
-    }
-    
-    // Validación para estado "Compró"
-    if (formData.estadoVenta === 'Compró') {
-      if (!formData.precio || parseFloat(formData.precio) <= 0) {
-        newErrors.precio = 'Debe ingresar un precio válido';
-      }
-    }
-    
-    // Validación para estado "Separó"
-    if (formData.estadoVenta === 'Separó') {
-      if (!formData.montoSeparacion || parseFloat(formData.montoSeparacion) <= 0) {
-        newErrors.montoSeparacion = 'Debe ingresar el monto de separación';
-      }
-    }
-    
-    // Validación para estado "Financió"
-    if (formData.estadoVenta === 'Financió') {
-      if (!formData.montoFinanciamiento || parseFloat(formData.montoFinanciamiento) <= 0) {
-        newErrors.montoFinanciamiento = 'Debe ingresar el monto financiado';
-      }
-    }
-    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -111,18 +66,7 @@ function ModalCliente({ show, onClose, onSave, editMode, initialData, rol, userE
   const handleSubmit = (e) => {
     e.preventDefault();
     if (validateForm()) {
-      if (editMode) {
-        // 🔥 MODO EDICIÓN: Solo enviar formData (ya tiene id, createdAt, agente originales)
-        onSave(formData);
-      } else {
-        // 🔥 MODO NUEVO: Agregar agente y createdAt
-        const datosCompletos = {
-          ...formData,
-          agente: userEmail || (rol === 'admin' ? 'Administrador' : 'Agente'),
-          createdAt: new Date().toISOString()
-        };
-        onSave(datosCompletos);
-      }
+      onSave(formData);
     }
   };
 
@@ -135,7 +79,9 @@ function ModalCliente({ show, onClose, onSave, editMode, initialData, rol, userE
           
           <div className="modal-header" style={{ backgroundColor: initialData?.estadoVenta === 'Compró' ? '#f59e0b' : '#0d6efd', color: 'white' }}>
             <h5 className="modal-title fw-bold">
-              {initialData?.estadoVenta === 'Compró' ? (
+              {tienePlanGenerado ? (
+                <><i className="fas fa-lock me-2"></i> Cliente con Cronograma Activo</>
+              ) : initialData?.estadoVenta === 'Compró' ? (
                 <><i className="fas fa-exclamation-triangle me-2"></i> Cliente - Compra Cerrada</>
               ) : (
                 <>{editMode ? '✏️ Editar Información del Cliente' : '➕ Registro de Nuevo Prospecto'}</>
@@ -144,17 +90,11 @@ function ModalCliente({ show, onClose, onSave, editMode, initialData, rol, userE
             <button type="button" className="btn-close btn-close-white" onClick={onClose}></button>
           </div>
 
-          {initialData?.estadoVenta === 'Compró' && rol === 'admin' && (
-            <div className="alert alert-warning m-3 mb-0">
-              <i className="fas fa-exclamation-triangle me-2"></i>
-              ⚠️ ESTE CLIENTE YA ESTÁ EN "COMPRÓ". Solo el ADMIN puede modificar precio, sector y estado.
-            </div>
-          )}
-
-          {isCompleto && (
-            <div className="alert alert-info m-3 mb-0">
+          {/* MENSAJE DE ADVERTENCIA SOBRE BLOQUEO DE PRECIO */}
+          {tienePlanGenerado && (
+            <div className="alert alert-info m-3 mb-0 py-2">
               <i className="fas fa-info-circle me-2"></i>
-              ℹ️ Este cliente ya completó la compra. Puedes editar datos personales, pero NO el estado, precio ni sector.
+              <strong>Nota:</strong> El precio está bloqueado porque ya existe un cronograma generado. El sector y lote siguen disponibles para cambios.
             </div>
           )}
 
@@ -162,79 +102,38 @@ function ModalCliente({ show, onClose, onSave, editMode, initialData, rol, userE
             <div className="modal-body p-4">
               <div className="row g-3">
                 
-                {/* --- CAMPOS SIEMPRE EDITABLES (incluso en Compró) --- */}
                 <div className="col-md-6">
                   <label className="form-label fw-bold">Nombre Completo *</label>
-                  <input 
-                    type="text" name="nombre" 
-                    className={`form-control ${errors.nombre ? 'is-invalid' : ''}`} 
-                    placeholder="Ej: JUAN PEREZ" 
-                    value={formData.nombre} 
-                    onChange={handleChange} 
-                  />
-                  {errors.nombre && <div className="invalid-feedback">{errors.nombre}</div>}
+                  <input type="text" name="nombre" className={`form-control ${errors.nombre ? 'is-invalid' : ''}`} value={formData.nombre} onChange={handleChange} />
                 </div>
 
                 <div className="col-md-6">
                   <label className="form-label fw-bold">DNI / Documento *</label>
-                  <input 
-                    type="text" name="dni" 
-                    className={`form-control ${errors.dni ? 'is-invalid' : ''}`} 
-                    placeholder="12345678" 
-                    value={formData.dni} 
-                    onChange={handleChange} 
-                  />
-                  {errors.dni && <div className="invalid-feedback">{errors.dni}</div>}
-                  <small className="text-muted">8 dígitos numéricos</small>
+                  <input type="text" name="dni" className={`form-control ${errors.dni ? 'is-invalid' : ''}`} value={formData.dni} onChange={handleChange} />
                 </div>
 
                 <div className="col-md-4">
                   <label className="form-label">Teléfono</label>
-                  <input 
-                    type="tel" name="telefono" 
-                    className={`form-control ${errors.telefono ? 'is-invalid' : ''}`} 
-                    placeholder="999999999" 
-                    value={formData.telefono} 
-                    onChange={handleChange} 
-                  />
-                  {errors.telefono && <div className="invalid-feedback">{errors.telefono}</div>}
-                  <small className="text-muted">9 dígitos</small>
+                  <input type="tel" name="telefono" className="form-control" value={formData.telefono} onChange={handleChange} />
                 </div>
 
                 <div className="col-md-4">
                   <label className="form-label">Correo</label>
-                  <input 
-                    type="email" name="correo" 
-                    className="form-control" 
-                    placeholder="ejemplo@correo.com" 
-                    value={formData.correo} 
-                    onChange={handleChange} 
-                  />
+                  <input type="email" name="correo" className="form-control" value={formData.correo} onChange={handleChange} />
                 </div>
 
                 <div className="col-md-4">
                   <label className="form-label">Fecha Contacto</label>
-                  <input 
-                    type="date" name="fechaContacto" 
-                    className="form-control" 
-                    value={formData.fechaContacto} 
-                    onChange={handleChange} 
-                  />
+                  <input type="date" name="fechaContacto" className="form-control" value={formData.fechaContacto} onChange={handleChange} />
                 </div>
                 
                 <div className="col-md-6">
                   <label className="form-label fw-bold text-primary">Acuerdo</label>
-                  <select 
-                    name="acuerdo" 
-                    className="form-select border-primary" 
-                    value={formData.acuerdo} 
-                    onChange={handleChange}
-                  >
+                  <select name="acuerdo" className="form-select border-primary" value={formData.acuerdo} onChange={handleChange}>
                     {ACUERDOS.map(a => <option key={a} value={a}>{a}</option>)}
                   </select>
                 </div>
 
-                {/* --- CAMPOS CRÍTICOS (BLOQUEADOS si isCompleto) --- */}
                 <div className="col-md-6">
                   <label className="form-label fw-bold text-primary">Estado Venta</label>
                   <select 
@@ -242,59 +141,52 @@ function ModalCliente({ show, onClose, onSave, editMode, initialData, rol, userE
                     className="form-select border-primary" 
                     value={formData.estadoVenta} 
                     onChange={handleChange}
-                    disabled={isCompleto}
+                    disabled={isCompleto || tienePlanGenerado} // Bloqueamos cambio de estado si ya hay plan
                   >
                     {ESTADOS_VENTA.map(e => <option key={e} value={e}>{e}</option>)}
                   </select>
-                  {isCompleto && <small className="text-muted">Bloqueado - Cliente ya completó compra</small>}
                 </div>
 
-                {/* 🔥 SECCIÓN UNIFICADA: Compró, Separó y Financió muestran lo mismo */}
+                {/* --- SECCIÓN DE DATOS DE LOTE (CUADRO VERDE) --- */}
                 {['Compró', 'Separó', 'Financió'].includes(formData.estadoVenta) && (
-                  <div className="col-12 row g-3 mt-1 bg-success bg-opacity-10 p-3 rounded">
+                  <div className="col-12 row g-3 mt-1 bg-success bg-opacity-10 p-3 rounded mx-0">
                     
-                    {/* 🔥 Cambiado a col-md-4 para que entren los 3 campos */}
+                    {/* MONTO / PRECIO: BLOQUEADO SI TIENE PLAN */}
                     <div className="col-md-4">
                       <label className="form-label fw-bold text-success">
                         {formData.estadoVenta === 'Compró' && 'Precio Final (S/)'}
                         {formData.estadoVenta === 'Separó' && 'Monto Separación (S/)'}
                         {formData.estadoVenta === 'Financió' && 'Monto Financiado (S/)'}
                       </label>
-                      
-                      {formData.estadoVenta === 'Compró' && (
-                        <input type="number" name="precio" className={`form-control ${errors.precio ? 'is-invalid' : ''}`} placeholder="0.00" value={formData.precio} onChange={handleChange} disabled={isCompleto} />
-                      )}
-                      {formData.estadoVenta === 'Separó' && (
-                        <input type="number" name="montoSeparacion" className={`form-control ${errors.montoSeparacion ? 'is-invalid' : ''}`} placeholder="0.00" value={formData.montoSeparacion} onChange={handleChange} disabled={isCompleto} />
-                      )}
-                      {formData.estadoVenta === 'Financió' && (
-                        <input type="number" name="montoFinanciamiento" className={`form-control ${errors.montoFinanciamiento ? 'is-invalid' : ''}`} placeholder="0.00" value={formData.montoFinanciamiento} onChange={handleChange} disabled={isCompleto} />
-                      )}
-
-                      {errors.precio && formData.estadoVenta === 'Compró' && <div className="invalid-feedback d-block">{errors.precio}</div>}
-                      {errors.montoSeparacion && formData.estadoVenta === 'Separó' && <div className="invalid-feedback d-block">{errors.montoSeparacion}</div>}
-                      {errors.montoFinanciamiento && formData.estadoVenta === 'Financió' && <div className="invalid-feedback d-block">{errors.montoFinanciamiento}</div>}
+                      <input 
+                        type="number" 
+                        name={formData.estadoVenta === 'Compró' ? 'precio' : (formData.estadoVenta === 'Separó' ? 'montoSeparacion' : 'montoFinanciamiento')} 
+                        className="form-control fw-bold" 
+                        value={formData.estadoVenta === 'Compró' ? formData.precio : (formData.estadoVenta === 'Separó' ? formData.montoSeparacion : formData.montoFinanciamiento)} 
+                        onChange={handleChange} 
+                        disabled={isCompleto || tienePlanGenerado} // 🔒 BLOQUEADO
+                      />
+                      {tienePlanGenerado && <small className="text-muted" style={{fontSize: '11px'}}>🔒 Bloqueado por cronograma</small>}
                     </div>
 
-                    {/* 🔥 Cambiado a col-md-4 */}
+                    {/* SECTOR: EDITABLE AUNQUE TENGA PLAN */}
                     <div className="col-md-4">
                       <label className="form-label fw-bold text-success">Sector</label>
                       <select 
                         name="sectorMz" 
-                        className={`form-select ${errors.sectorMz ? 'is-invalid' : ''}`} 
+                        className="form-select" 
                         value={formData.sectorMz} 
                         onChange={handleChange}
-                        disabled={isCompleto}
+                        disabled={isCompleto} // ✅ Editable aunque tenga plan
                       >
                         <option value="">Seleccionar sector...</option>
                         {SECTORES.map(sector => (
                           <option key={sector} value={sector}>{sector}</option>
                         ))}
                       </select>
-                      {errors.sectorMz && <div className="invalid-feedback">{errors.sectorMz}</div>}
                     </div>
 
-                    {/* 🔥 NUEVO CAMPO: Mz & Lt (Añadido exactamente como pediste) */}
+                    {/* MZ & LT: EDITABLE AUNQUE TENGA PLAN */}
                     <div className="col-md-4">
                       <label className="form-label fw-bold text-success">Mz & Lt</label>
                       <input 
@@ -304,7 +196,7 @@ function ModalCliente({ show, onClose, onSave, editMode, initialData, rol, userE
                         placeholder="Ej: Mz A Lt 5" 
                         value={formData.mzLote} 
                         onChange={handleChange} 
-                        disabled={isCompleto}
+                        disabled={isCompleto} // ✅ Editable aunque tenga plan
                       />
                     </div>
 

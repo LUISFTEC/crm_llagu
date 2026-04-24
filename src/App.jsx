@@ -8,6 +8,7 @@ import CRMClientes from './components/CRM/CRMClientes';
 import AgendaCitas from './components/Agenda/AgendaCitas';
 import LeadsList from './components/leads/LeadsList';
 import '@fortawesome/fontawesome-free/css/all.min.css';
+import FinanzasLista from './components/Finanzas/FinanzasLista';
 
 function App() {
   const { user, loading, rol } = useAuth();
@@ -45,9 +46,9 @@ function App() {
       {activeTab === 'crm' && <CRMClientes />}
       {activeTab === 'agenda' && (
         <AgendaCitas onSwitchToCRM={() => setActiveTab('crm')} />
-      )}
-      {activeTab === 'pipeline' && rol === 'admin' && <LeadsList rol={rol} />}
-
+      )}      
+      {activeTab === 'pipeline' && <LeadsList rol={rol} />}
+      {activeTab === 'finanzas' && <FinanzasLista rol={rol} />}
     </div>
   );
 }
