@@ -6,15 +6,13 @@ function ModalCliente({ show, onClose, onSave, editMode, initialData, rol, userE
   const [formData, setFormData] = useState({
     nombre: '', telefono: '', correo: '', dni: '', fechaContacto: '',
     acuerdo: 'Llamar', estadoVenta: 'Prospecto', 
-    precio: '', sectorMz: '', mzLote: '', montoSeparacion: '', montoFinanciamiento: ''
+    precio: '', sectorMz: '', mzLote: '', montoSeparacion: '', montoFinanciamiento: '',
+    agente: userEmail || ''
   });
   
   const [errors, setErrors] = useState({});
 
-  // 🔒 BLOQUEO ORIGINAL: Solo para AGENTES cuando el estado ORIGINAL es "Compró"
   const isCompleto = editMode && rol !== 'admin' && initialData?.estadoVenta === 'Compró';
-
-  // 🔥 NUEVA LÓGICA DE BLOQUEO: Detectar si ya tiene cronograma generado
   const tienePlanGenerado = editMode && initialData?.planGenerado === true;
 
   useEffect(() => {
@@ -26,7 +24,8 @@ function ModalCliente({ show, onClose, onSave, editMode, initialData, rol, userE
         fechaContacto: new Date().toISOString().split('T')[0],
         acuerdo: 'Llamar', estadoVenta: 'Prospecto', 
         precio: '', sectorMz: '', mzLote: '', montoSeparacion: '', montoFinanciamiento: '',
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        agente: userEmail || '' // ✅ ÚNICA LÍNEA AGREGADA
       });
     }
     setErrors({});
@@ -90,7 +89,6 @@ function ModalCliente({ show, onClose, onSave, editMode, initialData, rol, userE
             <button type="button" className="btn-close btn-close-white" onClick={onClose}></button>
           </div>
 
-          {/* MENSAJE DE ADVERTENCIA SOBRE BLOQUEO DE PRECIO */}
           {tienePlanGenerado && (
             <div className="alert alert-info m-3 mb-0 py-2">
               <i className="fas fa-info-circle me-2"></i>
@@ -141,17 +139,15 @@ function ModalCliente({ show, onClose, onSave, editMode, initialData, rol, userE
                     className="form-select border-primary" 
                     value={formData.estadoVenta} 
                     onChange={handleChange}
-                    disabled={isCompleto || tienePlanGenerado} // Bloqueamos cambio de estado si ya hay plan
+                    disabled={isCompleto || tienePlanGenerado}
                   >
                     {ESTADOS_VENTA.map(e => <option key={e} value={e}>{e}</option>)}
                   </select>
                 </div>
 
-                {/* --- SECCIÓN DE DATOS DE LOTE (CUADRO VERDE) --- */}
                 {['Compró', 'Separó', 'Financió'].includes(formData.estadoVenta) && (
                   <div className="col-12 row g-3 mt-1 bg-success bg-opacity-10 p-3 rounded mx-0">
                     
-                    {/* MONTO / PRECIO: BLOQUEADO SI TIENE PLAN */}
                     <div className="col-md-4">
                       <label className="form-label fw-bold text-success">
                         {formData.estadoVenta === 'Compró' && 'Precio Final (S/)'}
@@ -164,12 +160,11 @@ function ModalCliente({ show, onClose, onSave, editMode, initialData, rol, userE
                         className="form-control fw-bold" 
                         value={formData.estadoVenta === 'Compró' ? formData.precio : (formData.estadoVenta === 'Separó' ? formData.montoSeparacion : formData.montoFinanciamiento)} 
                         onChange={handleChange} 
-                        disabled={isCompleto || tienePlanGenerado} // 🔒 BLOQUEADO
+                        disabled={isCompleto || tienePlanGenerado}
                       />
                       {tienePlanGenerado && <small className="text-muted" style={{fontSize: '11px'}}>🔒 Bloqueado por cronograma</small>}
                     </div>
 
-                    {/* SECTOR: EDITABLE AUNQUE TENGA PLAN */}
                     <div className="col-md-4">
                       <label className="form-label fw-bold text-success">Sector</label>
                       <select 
@@ -177,7 +172,7 @@ function ModalCliente({ show, onClose, onSave, editMode, initialData, rol, userE
                         className="form-select" 
                         value={formData.sectorMz} 
                         onChange={handleChange}
-                        disabled={isCompleto} // ✅ Editable aunque tenga plan
+                        disabled={isCompleto}
                       >
                         <option value="">Seleccionar sector...</option>
                         {SECTORES.map(sector => (
@@ -186,7 +181,6 @@ function ModalCliente({ show, onClose, onSave, editMode, initialData, rol, userE
                       </select>
                     </div>
 
-                    {/* MZ & LT: EDITABLE AUNQUE TENGA PLAN */}
                     <div className="col-md-4">
                       <label className="form-label fw-bold text-success">Mz & Lt</label>
                       <input 
@@ -196,7 +190,7 @@ function ModalCliente({ show, onClose, onSave, editMode, initialData, rol, userE
                         placeholder="Ej: Mz A Lt 5" 
                         value={formData.mzLote} 
                         onChange={handleChange} 
-                        disabled={isCompleto} // ✅ Editable aunque tenga plan
+                        disabled={isCompleto}
                       />
                     </div>
 
